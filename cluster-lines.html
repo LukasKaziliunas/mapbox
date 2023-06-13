@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Create and style clusters</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoibHVrYXNrYXppbGl1bmFzIiwiYSI6ImNsaThua250bzF1OTQzcm85a2J5djllc20ifQ.lzrmiO42SA-k6HnB6ntMsA';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
+            style: 'mapbox://styles/mapbox/dark-v11',
+            center: [-122.48369693756104, 37.83381888486939],
+            zoom: 3
+        });
+
+        map.on('load', () => {
+
+                // Create a GeoJSON file with a LineString feature for each line
+var linesGeoJSON = {
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-122.48369693756104, 37.83381888486939],
+          [-122.48348236083984, 37.83317489144141]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-122.48348236083984, 37.83317489144141],
+          [-122.48339653015138, 37.83270036637107]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-122.48339653015138, 37.83270036637107],
+          [-122.48356819152832, 37.832056363179625]
+        ]
+      }
+    }
+  ]
+};
+
+// Add the GeoJSON file as a source to your map
+map.addSource("lines", {
+  "type": "geojson",
+  "data": linesGeoJSON,
+  "cluster": true,
+  "clusterRadius": 50
+});
+
+// Add a layer for the clusters
+map.addLayer({
+  "id": "lines-cluster",
+  "type": "circle",
+  "source": "lines",
+  "filter": ["has", "point_count"],
+  "paint": {
+    "circle-color": "#51bbd6",
+    "circle-radius": [
+      "step",
+      ["get", "point_count"],
+      20,
+      100,
+      30,
+      750,
+      40
+    ]
+  }
+});
+
+// Add a layer for the cluster count labels
+map.addLayer({
+  "id": "lines-cluster-count",
+  "type": "symbol",
+  "source": "lines",
+  "filter": ["has", "point_count"],
+  "layout": {
+    "text-field": "{point_count_abbreviated}",
+    "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
+    "text-size": 12
+  }
+});
+
+// Add a layer for the unclustered lines
+map.addLayer({
+  "id": "lines-unclustered",
+  "type": "line",
+  "source": "lines",
+  "filter": ["!", ["has", "point_count"]],
+  "paint": {
+    "line-color": "#51bbd6",
+    "line-width": 2
+  }
+});
+
+        });
+
+    
+    </script>
+
+</body>
+
+</html>

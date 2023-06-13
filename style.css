@@ -1,0 +1,15 @@
+.grid-container {
+    display: grid;
+    column-gap: 50px;
+    grid-template-columns: auto auto;
+  }
+
+  #map {
+    border: 1px solid rgba(0, 0, 0, 0.8);
+    height: 500px;
+    /*position: absolute; top: 0; bottom: 0; width: 100%;*/
+  }
+
+  #minimaps {
+    border: 1px solid rgba(0, 0, 0, 0.8);
+  }
