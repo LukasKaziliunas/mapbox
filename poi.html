@@ -8,8 +8,6 @@
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -50,7 +48,9 @@
     <div id="minimaps" style="width:40%; float: right;">
 
         <button id="trigger" onclick="addnewroute()">new route</button>
-        <button id="trigger" onclick="check()">check</button>
+        <br>
+
+        <button id="trigger" onclick="addwaypoint()">new waypoint</button>
         <br>
 
         <div id="feature-listing" class="listing"></div>
@@ -65,16 +65,11 @@
         const map = new mapboxgl.Map({
             container: 'map', // container ID
             // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
-            style: 'mapbox://styles/lukaskaziliunas/clia5nciq02wn01pgfq3u8b8y', // style URL
+            style: 'mapbox://styles/lukaskaziliunas/cliy8wjiv018y01pf2xqm4zbc', // style URL
             center: [24, 55], // starting position lng,lat
             zoom: 6 // starting zoom
         });
 
-
-        function check()
-        {
-            console.log(map.loaded());   
-        }
 
         map.on('load', () => {
             map.addSource('routes', {
@@ -107,28 +102,6 @@
                 cluster: true,
                 clusterMaxZoom: 4, // Max zoom to cluster points on
                 clusterRadius: 50 // Radius of each cluster when clustering points (defaults to 50)
-            });
-
-            map.addSource('endPoints', {
-                type: 'geojson',
-                data: {
-                    "type": "FeatureCollection",
-                    "features": [
-                        {
-                            "type": "Feature",
-                            "properties": {
-                                "type": "begining"
-                            },
-                            "geometry": {
-                                "coordinates": [
-                                    23.787356135589533,
-                                    54.83676399275538
-                                ],
-                                "type": "Point"
-                            }
-                        }
-                    ]
-                }
             });
 
             map.addLayer({
@@ -191,19 +164,6 @@
             });
 
             map.addLayer({
-                id: 'end_points',
-                type: 'circle',
-                source: 'endPoints',
-                paint: {
-                    'circle-color': '#11b4da',
-                    'circle-radius': 4,
-                    'circle-stroke-width': 1,
-                    'circle-stroke-color': '#fff'
-                },
-                "minzoom": 5, // Hide the layer when the map is zoomed out to zoom level 9 or lower
-            });
-
-            map.addLayer({
                 id: 'route',
                 type: 'line',
                 source: "routes",
@@ -246,154 +206,65 @@
             );
         });
 
-
-
-        map.on('click', 'route', (e) => {
+        map.on('click', 'poi-label', (e) => {
             const features = map.queryRenderedFeatures(e.point, {
-                layers: ['route']
+                layers: ['poi-label'],
             });
-            const clickedRoute = features[0];
 
-            const chunks = turf.lineChunk(clickedRoute, 1).features;
+            // If a feature is found, get its properties and display a popup
+            if (features && features.length > 0) {
+                const feature = features[0];
 
-            var elevations = [];
-            for (var i = 0; i < chunks.length; i++) {
-                var el = map.queryTerrainElevation(
-                    chunks[i].geometry.coordinates[0]
-                );
+                    console.log(feature);
+                const coordinates = feature.geometry.coordinates;
+                //const properties = feature.properties;
+                /*
+                waypoints.push([coordinates[0], coordinates[1]])
+                getRoute(start, end, waypoints);*/
+                let featureEncoded = JSON.stringify(feature)
+                
+                new mapboxgl.Popup()
+                    .setLngLat(coordinates)
+                    .setHTML(`<h1>${feature.properties.name_en}</h1><br><h2>${feature.properties.category_en}</h2><br><button onclick='addToWaypoint(${featureEncoded})'>add to waypoints</button>`)
+                    .addTo(map);
 
-                elevations.push(el);
             }
+        });
 
-            // add dummy labels
-            myLineChart.data.labels = elevations.map(() => '');
-            myLineChart.data.datasets[0] = {
-                data: elevations,
-                fill: false,
-                tension: 0.4
+        function addToWaypoint(feature)
+        {
+            const coordinates = feature.geometry.coordinates;
+            pushNewWaypoint(coordinates, "poi")
+            getRoute(start, end, waypoints);
+        }
+
+        function pushNewWaypoint(coordinates, type)
+        {
+            const waypoint = {
+                type: 'Feature',
+                properties: {
+                    type: type
+                },
+                geometry: {
+                    type: 'Point',
+                    coordinates: coordinates
+                }
             };
-            myLineChart.update();
-        });
 
-
-
-
-        map.on('zoomend', async () => {
-            const features = map.queryRenderedFeatures(undefined, {
-                layers: ['unclustered-startpoint', 'clusters'] // replace with your layer name
-            });
-
-            const points = features.filter(feature => feature.layer.id == "unclustered-startpoint");
-            const clusters = features.filter(feature => feature.layer.id == "clusters");
-            // console.log("points : ",points);
-            // console.log("");
-            // console.log("clusters : ",clusters);
-
-            var uniqueFeatures = []
-
-            if (points.length != 0) {
-                var uniqueunclusteredPoints = getUniqueFeatures(points, 'id');
-                uniqueFeatures = uniqueFeatures.concat(uniqueunclusteredPoints)
-            }
-
-            if (clusters.length != 0) {
-                var uniqueClusters = getUniqueFeatures(clusters, 'id');
-
-                for (let i = 0; i < uniqueClusters.length; i++) {
-
-                    var clusterFeatures = await getClusterChildren(uniqueClusters[i]);
-                    uniqueFeatures = uniqueFeatures.concat(clusterFeatures)
-                }
-            }
-
-            renderListings(uniqueFeatures)
-        });
-
-        async function getClusterChildren(cluster) {
-
-            return new Promise((resolve, reject) => {
-                const clusterId = cluster.properties.cluster_id;
-                const pointCount = cluster.properties.point_count;
-                const clusterSource = map.getSource('startPoints');
-                clusterSource.getClusterLeaves(clusterId, pointCount, 0, (error, features) => {
-                    if (!error) {
-                        resolve(features)
-                    }
-                    else {
-                        reject(error)
-                    }
-                });
-            })
+            waypoints.push(waypoint)
         }
 
-        function renderListings(features) {
-            const listingEl = document.getElementById('feature-listing');
-            // Clear any existing listings
-            listingEl.innerHTML = '';
-            if (features.length) {
-                for (const feature of features) {
-                    const para = document.createElement("p");
-                    para.innerText = "route id: " + feature.properties.id;
 
-                    listingEl.appendChild(para);
-                }
-            }
-        }
+        var route = [];
+        var startPoint = [];
+        var waypoints = [];
+        var isaddwaypoint = false;
 
-        var routes = [];
-        var startPoints = [];
         var setroute = false;
         var start = [];
         var end = [];
         var setCoord = 0;
         var count = 1;
-        const myLineChart = new Chart(document.getElementById('chart-canvas'), {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: []
-            },
-            options: {
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    title: {
-                        display: true,
-                        align: 'start',
-                        text: 'Elevation (m)'
-                    }
-                },
-                maintainAspectRatio: false,
-                responsive: true,
-                scales: {
-                    x: {
-                        grid: {
-                            display: false
-                        }
-                    },
-                    y: {
-                        min: -20,
-                        grid: {
-                            display: false
-                        }
-                    }
-                },
-                elements: {
-                    point: {
-                        radius: 0
-                    }
-                },
-                layout: {
-                    padding: {
-                        top: 6,
-                        right: 20,
-                        bottom: -10,
-                        left: 20
-                    }
-                }
-            }
-        });
 
         function addnewroute() {
             setroute = true;
@@ -402,6 +273,12 @@
 
         map.on('click', (e) => {
             //console.log(e.lngLat);
+
+            if (isaddwaypoint) {
+                pushNewWaypoint([e.lngLat.lng, e.lngLat.lat], "waypoint")
+                getRoute(start, end, waypoints);
+                return;
+            }
 
             if (!setroute) {
                 return;
@@ -417,34 +294,29 @@
                 end = [e.lngLat.lng, e.lngLat.lat];
                 setCoord = 0
                 setroute = false;
-                getRoute(start, end);
+                getRoute(start, end, waypoints);
                 return;
             }
 
 
         });
 
-        function getUniqueFeatures(features, comparatorProperty) {
-            const uniqueIds = new Set();
-            const uniqueFeatures = [];
-            for (const feature of features) {
-                //const id = feature.properties[comparatorProperty];
-                const id = feature.id;
-                if (!uniqueIds.has(id)) {
-                    uniqueIds.add(id);
-                    uniqueFeatures.push(feature);
-                }
-            }
-            return uniqueFeatures;
+        function addwaypoint() {
+            isaddwaypoint = !isaddwaypoint;
         }
 
         // create a function to make a directions request
-        async function getRoute(start, end) {
+        async function getRoute(start, end, waypoints) {
+            let waypointsStringified = waypoints.reduce(function (string, waypoint) {
+                let coords = waypoint.geometry.coordinates;
+                return string + `${coords[0]},${coords[1]};`;
+            }, '')
+            //console.log(waypointsStringified);
             // make a directions request using cycling profile
             // an arbitrary start will always be the same
             // only the end or destination will change
             const query = await fetch(
-                `https://api.mapbox.com/directions/v5/mapbox/cycling/${start[0]},${start[1]};${end[0]},${end[1]}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`,
+                `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${waypointsStringified}${end[0]},${end[1]}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`,
                 { method: 'GET' }
             );
             const json = await query.json();
@@ -463,8 +335,6 @@
                 id: count
             };
 
-
-
             const startPointGeoJson = {
                 type: 'Feature',
                 properties: {
@@ -479,8 +349,8 @@
 
             count++;
 
-            routes.push(routeGeoJson)
-            startPoints.push(startPointGeoJson)
+            routes = [routeGeoJson]
+            startPoints = [startPointGeoJson]
 
             const geojsonRoutes = {
                 type: 'FeatureCollection',

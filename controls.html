@@ -7,9 +7,6 @@
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -50,7 +47,6 @@
     <div id="minimaps" style="width:40%; float: right;">
 
         <button id="trigger" onclick="addnewroute()">new route</button>
-        <button id="trigger" onclick="check()">check</button>
         <br>
 
         <div id="feature-listing" class="listing"></div>
@@ -70,11 +66,81 @@
             zoom: 6 // starting zoom
         });
 
+        class BeginningPointControl {
 
-        function check()
-        {
-            console.log(map.loaded());   
+            onAdd(map) {
+
+                const div = document.createElement('div');
+                div.className = "mapboxgl-ctrl mapboxgl-ctrl-group ";
+                div.innerHTML = `<button>
+                    <svg focusable="false" viewBox="0 0 20 20" aria-hidden="true" style="font-size: 20px;"><title>set beginning point</title><path fill="#FF0000" d="m10 2c-3.3 0-6 2.7-6 6s6 9 6 9 6-5.7 6-9-2.7-6-6-6zm0 2c2.1 0 3.8 1.7 3.8 3.8 0 1.5-1.8 3.9-2.9 5.2h-1.7c-1.1-1.4-2.9-3.8-2.9-5.2-.1-2.1 1.6-3.8 3.7-3.8z"></path></svg>
+                </button>`;
+
+                div.addEventListener("contextmenu", (e) => e.preventDefault());
+                div.addEventListener("click", () => { alert("hi") });
+                return div;
+            }
+
+            onRemove() {
+                this._container.parentNode.removeChild(this._container);
+                this._map = undefined;
+            }
         }
+
+        class DestinationPointControl {
+
+            onAdd(map) {
+
+                const div = document.createElement('div');
+                div.className = "mapboxgl-ctrl mapboxgl-ctrl-group ";
+                div.innerHTML = `<button>
+        <svg focusable="false" viewBox="0 0 20 20" aria-hidden="true" style="font-size: 20px;"><title>set beginning point</title><path fill="#0000FF" d="m10 2c-3.3 0-6 2.7-6 6s6 9 6 9 6-5.7 6-9-2.7-6-6-6zm0 2c2.1 0 3.8 1.7 3.8 3.8 0 1.5-1.8 3.9-2.9 5.2h-1.7c-1.1-1.4-2.9-3.8-2.9-5.2-.1-2.1 1.6-3.8 3.7-3.8z"></path></svg>
+    </button>`;
+
+                div.addEventListener("contextmenu", (e) => e.preventDefault());
+                div.addEventListener("click", () => { alert("hi") });
+                return div;
+            }
+
+            onRemove() {
+                this._container.parentNode.removeChild(this._container);
+                this._map = undefined;
+            }
+        }
+
+        class CancelPointControl {
+
+            onAdd(map) {
+
+                const div = document.createElement('div');
+                div.className = "mapboxgl-ctrl mapboxgl-ctrl-group ";
+                div.innerHTML = `<button>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
+  <line x1="0" y1="0" x2="20" y2="20" stroke="black" stroke-width="2" />
+  <line x1="0" y1="20" x2="20" y2="0" stroke="black" stroke-width="2" />
+</svg>
+</button>`;
+
+                div.addEventListener("contextmenu", (e) => e.preventDefault());
+                div.addEventListener("click", () => { alert("hi") });
+                return div;
+            }
+
+            onRemove() {
+                this._container.parentNode.removeChild(this._container);
+                this._map = undefined;
+            }
+        }
+
+
+
+        const testControl = new BeginningPointControl();
+        const testControl2 = new DestinationPointControl();
+        const testControl3 = new CancelPointControl();
+        map.addControl(testControl, "bottom-right");
+        map.addControl(testControl2, "bottom-right");
+        map.addControl(testControl3, "bottom-right");
+
 
         map.on('load', () => {
             map.addSource('routes', {
@@ -87,15 +153,6 @@
                 }
             });
 
-            //elevation layer
-            map.addSource('mapbox-dem', {
-                type: 'raster-dem',
-                url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-                tileSize: 512,
-                maxzoom: 20
-            });
-            map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1 });
-
             map.addSource('startPoints', {
                 type: 'geojson',
                 // Point to GeoJSON data. This example visualizes all M1.0+ earthquakes
@@ -107,28 +164,6 @@
                 cluster: true,
                 clusterMaxZoom: 4, // Max zoom to cluster points on
                 clusterRadius: 50 // Radius of each cluster when clustering points (defaults to 50)
-            });
-
-            map.addSource('endPoints', {
-                type: 'geojson',
-                data: {
-                    "type": "FeatureCollection",
-                    "features": [
-                        {
-                            "type": "Feature",
-                            "properties": {
-                                "type": "begining"
-                            },
-                            "geometry": {
-                                "coordinates": [
-                                    23.787356135589533,
-                                    54.83676399275538
-                                ],
-                                "type": "Point"
-                            }
-                        }
-                    ]
-                }
             });
 
             map.addLayer({
@@ -163,8 +198,6 @@
                 }
             });
 
-
-
             map.addLayer({
                 id: 'cluster-count',
                 type: 'symbol',
@@ -188,19 +221,6 @@
                     'circle-stroke-width': 1,
                     'circle-stroke-color': '#fff'
                 }
-            });
-
-            map.addLayer({
-                id: 'end_points',
-                type: 'circle',
-                source: 'endPoints',
-                paint: {
-                    'circle-color': '#11b4da',
-                    'circle-radius': 4,
-                    'circle-stroke-width': 1,
-                    'circle-stroke-color': '#fff'
-                },
-                "minzoom": 5, // Hide the layer when the map is zoomed out to zoom level 9 or lower
             });
 
             map.addLayer({
@@ -245,38 +265,6 @@
                 }
             );
         });
-
-
-
-        map.on('click', 'route', (e) => {
-            const features = map.queryRenderedFeatures(e.point, {
-                layers: ['route']
-            });
-            const clickedRoute = features[0];
-
-            const chunks = turf.lineChunk(clickedRoute, 1).features;
-
-            var elevations = [];
-            for (var i = 0; i < chunks.length; i++) {
-                var el = map.queryTerrainElevation(
-                    chunks[i].geometry.coordinates[0]
-                );
-
-                elevations.push(el);
-            }
-
-            // add dummy labels
-            myLineChart.data.labels = elevations.map(() => '');
-            myLineChart.data.datasets[0] = {
-                data: elevations,
-                fill: false,
-                tension: 0.4
-            };
-            myLineChart.update();
-        });
-
-
-
 
         map.on('zoomend', async () => {
             const features = map.queryRenderedFeatures(undefined, {
@@ -333,7 +321,7 @@
             if (features.length) {
                 for (const feature of features) {
                     const para = document.createElement("p");
-                    para.innerText = "route id: " + feature.properties.id;
+                    para.innerText = "point id: " + feature.properties.id;
 
                     listingEl.appendChild(para);
                 }
@@ -347,53 +335,6 @@
         var end = [];
         var setCoord = 0;
         var count = 1;
-        const myLineChart = new Chart(document.getElementById('chart-canvas'), {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: []
-            },
-            options: {
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    title: {
-                        display: true,
-                        align: 'start',
-                        text: 'Elevation (m)'
-                    }
-                },
-                maintainAspectRatio: false,
-                responsive: true,
-                scales: {
-                    x: {
-                        grid: {
-                            display: false
-                        }
-                    },
-                    y: {
-                        min: -20,
-                        grid: {
-                            display: false
-                        }
-                    }
-                },
-                elements: {
-                    point: {
-                        radius: 0
-                    }
-                },
-                layout: {
-                    padding: {
-                        top: 6,
-                        right: 20,
-                        bottom: -10,
-                        left: 20
-                    }
-                }
-            }
-        });
 
         function addnewroute() {
             setroute = true;

@@ -65,7 +65,7 @@
         const map = new mapboxgl.Map({
             container: 'map', // container ID
             // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
-            style: 'mapbox://styles/lukaskaziliunas/clia5nciq02wn01pgfq3u8b8y', // style URL
+            style: 'mapbox://styles/lukaskaziliunas/cliy8wjiv018y01pf2xqm4zbc', // style URL
             center: [24, 55], // starting position lng,lat
             zoom: 6 // starting zoom
         });
@@ -76,6 +76,14 @@
                 type: 'geojson',
                 // Point to GeoJSON data. This example visualizes all M1.0+ earthquakes
                 // from 12/22/15 to 1/21/16 as logged by USGS' Earthquake hazards program.
+                data: {
+                    "type": "FeatureCollection",
+                    "features": []
+                }
+            });
+
+            map.addSource('waypoints', {
+                type: 'geojson',
                 data: {
                     "type": "FeatureCollection",
                     "features": []
@@ -179,6 +187,18 @@
                 "minzoom": 5, // Hide the layer when the map is zoomed out to zoom level 9 or lower
             });
 
+            map.addLayer({
+                    id: 'waypoints',
+                    type: 'circle',
+                    source: 'waypoints',
+                    paint: {
+                        'circle-color': '#000000',
+                        'circle-radius': 5,
+                        'circle-stroke-width': 1,
+                        'circle-stroke-color': '#fff'
+                    }
+                });
+
 
         });
 
@@ -206,6 +226,62 @@
             );
         });
 
+        map.on('click', 'poi-label', (e) => {
+            const features = map.queryRenderedFeatures(e.point, {
+                layers: ['poi-label'],
+            });
+
+            // If a feature is found, get its properties and display a popup
+            if (features && features.length > 0) {
+                const feature = features[0];
+
+                    console.log(feature);
+                const coordinates = feature.geometry.coordinates;
+                //const properties = feature.properties;
+                /*
+                waypoints.push([coordinates[0], coordinates[1]])
+                getRoute(start, end, waypoints);*/
+                let featureEncoded = JSON.stringify(feature)
+                
+                new mapboxgl.Popup()
+                    .setLngLat(coordinates)
+                    .setHTML(`<h1>${feature.properties.name_en}</h1><br><h2>${feature.properties.category_en}</h2><br><button onclick='addToWaypoint(${featureEncoded})'>add to waypoints</button>`)
+                    .addTo(map);
+
+            }
+        });
+
+        function addToWaypoint(feature)
+        {
+            const coordinates = feature.geometry.coordinates;
+            pushNewWaypoint(coordinates, "poi")
+            getRoute(start, end, waypoints);
+        }
+
+        function pushNewWaypoint(coordinates, type)
+        {
+            const waypoint = {
+                type: 'Feature',
+                properties: {
+                    type: type
+                },
+                geometry: {
+                    type: 'Point',
+                    coordinates: coordinates
+                }
+            };
+
+            waypoints.push(waypoint)
+
+            const geojsonPoints = {
+                type: 'FeatureCollection',
+                features: waypoints,
+            };
+
+            const geojsonSource = map.getSource('waypoints');
+            geojsonSource.setData(geojsonPoints);
+        }
+
 
         var route = [];
         var startPoint = [];
@@ -226,9 +302,8 @@
         map.on('click', (e) => {
             //console.log(e.lngLat);
 
-            if(isaddwaypoint)
-            {
-                waypoints.push([e.lngLat.lng, e.lngLat.lat])
+            if (isaddwaypoint) {
+                pushNewWaypoint([e.lngLat.lng, e.lngLat.lat], "waypoint")
                 getRoute(start, end, waypoints);
                 return;
             }
@@ -254,22 +329,22 @@
 
         });
 
-        function addwaypoint()
-        {
+        function addwaypoint() {
             isaddwaypoint = !isaddwaypoint;
         }
 
         // create a function to make a directions request
         async function getRoute(start, end, waypoints) {
-            let waypointsStringified = waypoints.reduce(function(string, waypoint){
-                return string + `${waypoint[0]},${waypoint[1]};`;
+            let waypointsStringified = waypoints.reduce(function (string, waypoint) {
+                let coords = waypoint.geometry.coordinates;
+                return string + `${coords[0]},${coords[1]};`;
             }, '')
             //console.log(waypointsStringified);
             // make a directions request using cycling profile
             // an arbitrary start will always be the same
             // only the end or destination will change
             const query = await fetch(
-                `https://api.mapbox.com/directions/v5/mapbox/cycling/${start[0]},${start[1]};${waypointsStringified}${end[0]},${end[1]}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`,
+                `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${waypointsStringified}${end[0]},${end[1]}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`,
                 { method: 'GET' }
             );
             const json = await query.json();
